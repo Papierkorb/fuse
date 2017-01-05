@@ -1,0 +1,9 @@
+name: fuse
+version: 0.1.0
+
+authors:
+  - Stefan Merettig <stefan-merettig@nuriaproject.org>
+
+crystal: 0.20.3+13
+
+license: MIT
