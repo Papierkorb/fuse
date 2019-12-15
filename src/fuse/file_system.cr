@@ -51,6 +51,10 @@ module Fuse
       nil
     end
 
+    def write(path, handle, buffer : Bytes, offset, fi) : Int32 | Nil
+      nil
+    end
+
     # Opens a directory at *path*.  Analogous to `#open`
     def opendir(path) : UInt64 | Int32 | Nil
       0u64
@@ -101,6 +105,12 @@ module Fuse
         result r
       end
 
+      @operations.write = ->(path : LibC::Char*, buf : LibC::Char*, size : LibC::SizeT, offset : LibC::OffT, fi : Binding::FileInfo*) do
+        w = invoke_file write, path, fi, buf.as(UInt8*).to_slice(size), offset
+        return w if w.is_a?(Int32)
+        result w
+      end
+
       @operations.opendir = ->(path : LibC::Char*, fi : Binding::FileInfo*) do
         r = invoke opendir, String.new(path)
         fi.value.file_handle = r if r.is_a?(UInt64)
@@ -120,9 +130,9 @@ module Fuse
         filler.call buf, "..".to_unsafe, Pointer(LibC::Stat).null, 0i64
 
         if r.is_a?(Enumerable(String))
-          r.each{|path| filler.call buf, path.to_unsafe, Pointer(LibC::Stat).null, 0i64}
+          r.each { |path| filler.call buf, path.to_unsafe, Pointer(LibC::Stat).null, 0i64 }
         else
-          r.each{|path, stat| filler.call buf, path.to_unsafe, pointerof(stat), 0i64}
+          r.each { |path, stat| filler.call buf, path.to_unsafe, pointerof(stat), 0i64 }
         end
 
         0
