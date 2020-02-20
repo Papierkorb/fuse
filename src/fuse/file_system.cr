@@ -40,27 +40,102 @@ module Fuse
       nil
     end
 
+    # Changes the timestamp of *path* to *time*.
+    #
+    # *time* will be of type `LibC::Timespec[2]`, which is the timestamp in nanoseconds.
+    def utimens(path, time) : Int32 | Nil
+      0
+    end
+
+    # Attempts to access a file at *path*. *mode* is either `LibC::F_OK` or a mask consisting of the bitwise OR of one or more of `LibC::R_OK`, `LibC::W_OK`, and `LibC::X_OK`.
+    #
+    # `LibC::F_OK` tests for the existence of the file. `LibC::R_OK`, `LibC::W_OK`, and `LibC::X_OK` test whether the file exists and grants read, write, and execute permissions, respectively.
+    def access(path, mode) : Int32 | Nil
+      0
+    end
+
     # Closes a file at *path*.  Please read more about it in
     # `Binding::Operations#release`.  Return `0` on success.
     def release(path, handle, fi) : Int32 | Nil
       0
     end
 
-    # Reads an open file.  Return the read bytes on success.
+    # Shortens the size of *path* by *offset*.
+    def truncate(path, offset) : Int32 | Nil
+      0
+    end
+
+    # Removes *path*.
+    def unlink(path) : Int32 | Nil
+      0
+    end
+
+    # Removes directory *path*.
+    def rmdir(path) : Int32 | Nil
+      0
+    end
+
+    # Makes directory at *path* with *mode* permissions.
+    def mkdir(path, mode) : Int32 | Nil
+      0
+    end
+
+    # Creates *path* with *mode* permissions.
+    def create(path, mode, fi) : UInt64 | Int32 | Nil
+      0u64
+    end
+
+    # Moves *path* to *newpath*.
+    def rename(path, newpath) : Int32 | Nil
+      0
+    end
+
+    # Reads an open file.  Returns the read bytes on success.
+    #
+    # ```
+    # def read(path, handle, buffer, offset, fi)
+    #   text = "hello"
+    #   len = text.size
+    #   return 0 if offset >= len
+    #   if offset + buffer.size > len
+    #     to_copy = len - offset
+    #   else
+    #     to_copy = buffer.size
+    #   end
+    #   buffer.copy_from(text.to_unsafe + offset, to_copy)
+    #   to_copy.to_i32
+    # end
+    # ```
     def read(path, handle, buffer : Bytes, offset, fi) : Int32 | Nil
       nil
     end
 
+    # Writes an open file. Returns the write bytes on success.
+    #
+    # ```
+    # def write(path, handle, buffer, offset, fi)
+    #   text = "hello"
+    #   new_text = text[...offset] + String.new(buffer)
+    #   return buffer.size
+    # end
+    # ```
     def write(path, handle, buffer : Bytes, offset, fi) : Int32 | Nil
       nil
     end
 
-    # Opens a directory at *path*.  Analogous to `#open`
+    # Stops the file system.
+    #
+    # NOTE: Does not seem to work at the moment.
+    def destroy() : Int32 | Nil
+      nil # Binding wrong? Maybe 0 needs to be returned? Not looked into.
+    end
+
+    # Opens a directory at *path*.  Analogous to `#open`.
     def opendir(path) : UInt64 | Int32 | Nil
       0u64
     end
 
-    # Closes a directory at *path*.  Analogous to `#release`
+    # Closes a directory at *path*.  Analogous to `#release`.
     def releasedir(path, handle, fi) : Int32 | Nil
       0
     end
@@ -94,6 +169,10 @@ module Fuse
         result r
       end
 
+      @operations.destroy = ->(void: Pointer(Void)) do
+        invoke destroy
+      end
+
       @operations.release = ->(path : LibC::Char*, fi : Binding::FileInfo*) do
         result invoke_file release, path, fi
       end
@@ -105,6 +184,40 @@ module Fuse
         result r
       end
 
+      @operations.utimens = ->(path : LibC::Char*, time: LibC::Timespec[2]) do
+        result invoke_path utimens, path, time
+      end
+
+      @operations.access = ->(path : LibC::Char*, mode : LibC::Int) do
+        result invoke_path access, path, mode
+      end
+
+      @operations.truncate = ->(path : LibC::Char*, offset : LibC::OffT) do
+        result invoke_path truncate, path, offset
+      end
+
+      @operations.unlink = ->(path : LibC::Char*) do
+        result invoke_path unlink, path
+      end
+
+      @operations.rmdir = ->(path : LibC::Char*) do
+        result invoke_path rmdir, path
+      end
+
+      @operations.mkdir = ->(path : LibC::Char*, mode : LibC::ModeT) do
+        result invoke_path mkdir, path, mode
+      end
+
+      @operations.create = ->(path : LibC::Char*, mode : LibC::ModeT, fi : Binding::FileInfo*) do
+        r = invoke_path create, path, mode, fi
+        fi.value.file_handle = r if r.is_a?(UInt64)
+        result r
+      end
+
+      @operations.rename = ->(path : LibC::Char*, newpath : LibC::Char*) do
+        result invoke_path rename, path, String.new(newpath)
+      end
+
       @operations.write = ->(path : LibC::Char*, buf : LibC::Char*, size : LibC::SizeT, offset : LibC::OffT, fi : Binding::FileInfo*) do
         w = invoke_file write, path, fi, buf.as(UInt8*).to_slice(size), offset
         return w if w.is_a?(Int32)
@@ -112,7 +225,7 @@ module Fuse
       end
 
       @operations.opendir = ->(path : LibC::Char*, fi : Binding::FileInfo*) do
-        r = invoke opendir, String.new(path)
+        r = invoke_path opendir, path
         fi.value.file_handle = r if r.is_a?(UInt64)
         result r
       end
@@ -143,6 +256,10 @@ module Fuse
       %ctx = Binding.get_context
       %fs = %ctx.value.private_data.as(FileSystem)
       %fs.{{ method }}({{ arguments.splat }})
+    end
+
+    private macro invoke_path(method, path, *arguments)
+      invoke({{ method }}, String.new({{ path }}), {{ arguments.splat }})
     end
 
     private macro invoke_file(method, path, fi)
