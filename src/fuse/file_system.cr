@@ -129,8 +129,8 @@ module Fuse
         filler.call buf, ".".to_unsafe, Pointer(LibC::Stat).null, 0i64
         filler.call buf, "..".to_unsafe, Pointer(LibC::Stat).null, 0i64
 
-        if r.is_a?(Enumerable(String))
-          r.each { |path| filler.call buf, path.to_unsafe, Pointer(LibC::Stat).null, 0i64 }
+        if r.is_a?(Enumerable(String | Nil))
+          r.each { |path| next if path.nil?; filler.call buf, path.to_unsafe, Pointer(LibC::Stat).null, 0i64 }
         else
           r.each { |path, stat| filler.call buf, path.to_unsafe, pointerof(stat), 0i64 }
         end
