@@ -61,6 +61,16 @@ module Fuse
     end
 
     # Shortens the size of *path* by *offset*.
+    #
+    # ```
+    # def truncate(path, offset)
+    #   case path
+    #   when "/file"
+    #     text = "hello"
+    #     new_text = text[...offset]
+    #   end
+    # end
+    # ```
     def truncate(path, offset) : Int32 | Nil
       0
     end
@@ -94,16 +104,19 @@ module Fuse
     #
     # ```
     # def read(path, handle, buffer, offset, fi)
-    #   text = "hello"
-    #   len = text.size
-    #   return 0 if offset >= len
-    #   if offset + buffer.size > len
-    #     to_copy = len - offset
-    #   else
-    #     to_copy = buffer.size
+    #   case path
+    #   when "/file"
+    #     text = "hello"
+    #     len = text.size
+    #     return 0 if offset >= len
+    #     if offset + buffer.size > len
+    #       to_copy = len - offset
+    #     else
+    #       to_copy = buffer.size
+    #     end
+    #     buffer.copy_from(text.to_unsafe + offset, to_copy)
+    #     to_copy.to_i32
     #   end
-    #   buffer.copy_from(text.to_unsafe + offset, to_copy)
-    #   to_copy.to_i32
     # end
     # ```
     def read(path, handle, buffer : Bytes, offset, fi) : Int32 | Nil
@@ -114,9 +127,12 @@ module Fuse
     #
     # ```
     # def write(path, handle, buffer, offset, fi)
-    #   text = "hello"
-    #   new_text = text[...offset] + String.new(buffer)
-    #   return buffer.size
+    #   case path
+    #   when "/file"
+    #     text = "hello"
+    #     new_text = text[...offset] + String.new(buffer)
+    #     buffer.size
+    #   end
     # end
     # ```
     def write(path, handle, buffer : Bytes, offset, fi) : Int32 | Nil
