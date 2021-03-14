@@ -51,7 +51,7 @@ module Fuse
       nil
     end
 
-    # Reads a symlink.  Return 0 on success.
+    # Reads a symlink.  Returns a string with the target path or nil.
     def readlink(path) : String | Nil
       nil
     end
