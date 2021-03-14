@@ -114,10 +114,9 @@ module Fuse
         if r.nil?
           -LibC::ENOSYS
         else
-          buffer = buf.as(UInt8*).to_slice(size)
           target = r + "\0"
-          target.to_slice.copy_to(buffer)
-          0
+          target.to_slice.copy_to buf.as(UInt8*).to_slice(size)
+          0 # the return value should be 0 for success
         end
       end
 
