@@ -114,9 +114,10 @@ module Fuse
         if r.nil?
           -LibC::ENOSYS
         else
-          target = r + "\0"
-          target.to_slice.copy_to buf.as(UInt8*).to_slice(size)
-          0 # the return value should be 0 for success
+          r.check_no_null_byte
+          buffer = buf.as(UInt8*).to_slice(size)
+          buffer.copy_from(r.to_unsafe, r.bytesize + 1) # + 1 to also include the terminating 0-byte
+          0                                             # the return value should be 0 for success
         end
       end
 
