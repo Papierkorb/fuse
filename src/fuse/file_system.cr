@@ -51,6 +51,11 @@ module Fuse
       nil
     end
 
+    # Reads a symlink.  Returns a string with the target path or nil.
+    def readlink(path) : String | Nil
+      nil
+    end
+
     def write(path, handle, buffer : Bytes, offset, fi) : Int32 | Nil
       nil
     end
@@ -100,9 +105,20 @@ module Fuse
 
       @operations.read = ->(path : LibC::Char*, buf : LibC::Char*, size : LibC::SizeT, offset : LibC::OffT, fi : Binding::FileInfo*) do
         r = invoke_file read, path, fi, buf.as(UInt8*).to_slice(size), offset
-
         return r if r.is_a?(Int32)
         result r
+      end
+
+      @operations.readlink = ->(path : LibC::Char*, buf : LibC::Char*, size : LibC::SizeT) do
+        r = invoke readlink, String.new(path)
+        if r.nil?
+          -LibC::ENOSYS
+        else
+          r.check_no_null_byte
+          buffer = buf.as(UInt8*).to_slice(size)
+          buffer.copy_from(r.to_unsafe, r.bytesize + 1) # + 1 to also include the terminating 0-byte
+          0                                             # the return value should be 0 for success
+        end
       end
 
       @operations.write = ->(path : LibC::Char*, buf : LibC::Char*, size : LibC::SizeT, offset : LibC::OffT, fi : Binding::FileInfo*) do
