@@ -81,7 +81,7 @@ module Fuse
     # Runs the file system.  This will block until the file-system has been
     # unmounted.
     def run!(argv : Enumerable(String) = ARGV)
-      arguments = ARGV.map(&.to_unsafe).to_unsafe
+      arguments = argv.map(&.to_unsafe).to_unsafe
       data_ptr = self.as(Void*)
       Fuse::Binding.main(argv.size, arguments, pointerof(@operations), sizeof(Binding::Operations), data_ptr)
     end
